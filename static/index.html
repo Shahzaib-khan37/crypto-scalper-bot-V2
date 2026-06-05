@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity - Pro Crypto Spot Scalping Bot &amp; Dashboard</title>
+  <meta name="description" content="Antigravity Scalper: A professional crypto spot-scalping bot dashboard with live PnL, real-time exchange monitoring, multi-account management, and automated strategy scanning.">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- FontAwesome icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Ambient Neon Background Glows -->
+  <div class="glow-bg glow-cyan"></div>
+  <div class="glow-bg glow-purple"></div>
+
+  <!-- ============================================================
+       CONTROL PANEL SIDEBAR (slide-in from right)
+       All account management &amp; bot settings live here.
+       Settings auto-save on change — no save button needed.
+       ============================================================ -->
+  <div class="cp-overlay" id="cpOverlay" onclick="closeControlPanel()"></div>
+
+  <aside class="control-panel glass" id="controlPanel" role="complementary" aria-label="Control Panel">
+    <div class="cp-header">
+      <div class="cp-title">
+        <i class="fa-solid fa-sliders"></i>
+        <span>Control Panel</span>
+      </div>
+      <button class="cp-close-btn" id="cpCloseBtn" onclick="closeControlPanel()" title="Close Control Panel">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="cp-body">
+
+      <!-- ── SECTION 1: ACCOUNT MANAGEMENT ─────────────────── -->
+      <div class="cp-section">
+        <div class="cp-section-label">
+          <i class="fa-solid fa-user-gear"></i> Account Management
+        </div>
+
+        <!-- Create New Account Form -->
+        <div class="cp-block">
+          <div class="cp-sub-label">Create Account</div>
+          <form id="createAccountForm" autocomplete="off">
+            <div class="cp-field">
+              <input type="text" id="accName" class="cp-input" placeholder="Account Name (e.g. Binance Spot)" required>
+            </div>
+            <div class="cp-field">
+              <select id="accMode" class="cp-select" onchange="toggleCredentialFields()">
+                <option value="paper">📄 Paper (Simulated)</option>
+                <option value="real">🔴 Real Trading (API)</option>
+              </select>
+            </div>
+            <div class="cp-field" id="initialBalanceRow">
+              <input type="number" id="accInitialBalance" class="cp-input" placeholder="Starting Balance ($)" value="1000" min="1">
+            </div>
+            <div class="cp-credentials hidden" id="credentialsWrapper">
+              <div class="cp-field">
+                <input type="password" id="accApiKey" class="cp-input" placeholder="API Key" autocomplete="new-password">
+              </div>
+              <div class="cp-field">
+                <input type="password" id="accApiSecret" class="cp-input" placeholder="API Secret" autocomplete="new-password">
+              </div>
+            </div>
+            <button type="submit" class="cp-btn cp-btn-accent">
+              <i class="fa-solid fa-plus-square"></i> Create Account
+            </button>
+          </form>
+        </div>
+
+        <!-- Registered Accounts List -->
+        <div class="cp-block">
+          <div class="cp-sub-label">Registered Accounts</div>
+          <div class="profiles-list" id="profilesList">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ── SECTION 2: BALANCE CONTROLS ───────────────────── -->
+      <div class="cp-section">
+        <div class="cp-section-label">
+          <i class="fa-solid fa-scale-balanced"></i> Balance Controls
+          <span class="cp-autosave-badge"><i class="fa-solid fa-bolt"></i> Auto-save</span>
+        </div>
+
+        <div class="cp-block" id="totalBalanceGroup">
+          <div class="cp-sub-label">Total Account Balance ($)</div>
+          <div class="cp-inline-field">
+            <input type="number" id="totalBalanceInput" class="cp-input" min="1" placeholder="e.g. 1000">
+          </div>
+          <div class="cp-hint">Adjustable for Paper accounts. Reflects live balance for Real accounts.</div>
+        </div>
+
+        <div class="cp-block">
+          <div class="cp-slider-header">
+            <span class="cp-sub-label">Trading Capital Allocation</span>
+            <span class="cp-slider-val" id="capitalSliderVal">$500</span>
+          </div>
+          <input type="range" min="10" max="5000" step="10" value="500" class="cp-slider" id="capitalSlider">
+          <div class="cp-hint">Portion of total balance the bot can use. The rest is locked as Safe Balance.</div>
+        </div>
+      </div>
+
+      <!-- ── SECTION 3: BOT PARAMETERS ─────────────────────── -->
+      <div class="cp-section">
+        <div class="cp-section-label">
+          <i class="fa-solid fa-robot"></i> Bot Parameters
+          <span class="cp-autosave-badge"><i class="fa-solid fa-bolt"></i> Auto-save</span>
+        </div>
+
+        <div class="cp-block">
+          <div class="cp-slider-header">
+            <span class="cp-sub-label">Max Concurrent Trades</span>
+            <span class="cp-slider-val" id="maxTradesSliderVal">5</span>
+          </div>
+          <input type="range" min="1" max="15" step="1" value="5" class="cp-slider" id="maxTradesSlider">
+          <div class="cp-hint">Maximum simultaneous open positions allowed at one time.</div>
+        </div>
+
+        <div class="cp-block">
+          <div class="cp-sub-label">Google Sheets Webhook URL</div>
+          <input type="text" id="sheetsWebhookUrl" class="cp-input" placeholder="https://script.google.com/macros/s/...">
+          <div class="cp-hint">Mirror all trades automatically to your Google Sheet.</div>
+        </div>
+      </div>
+
+    </div><!-- /cp-body -->
+  </aside>
+
+  <!-- ============================================================
+       HEADER
+       ============================================================ -->
+  <header class="header glass">
+    <div class="logo-area">
+      <div class="logo-icon"><i class="fa-solid fa-bolt"></i></div>
+      <div class="logo-text">
+        <span class="brand-anti">ANTIGRAVITY</span>
+        <span class="brand-scalp">SCALPER</span>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <!-- Paper vs Live Trading Badge -->
+      <div class="trading-mode-badge" id="modeBadge">
+        <span class="badge-dot"></span>
+        <span class="badge-label" id="modeLabel">PAPER TRADING</span>
+      </div>
+
+      <!-- Active Account Switcher -->
+      <div class="account-selector-wrapper">
+        <i class="fa-solid fa-wallet wallet-icon"></i>
+        <select id="activeAccountSelect" class="glass-select">
+          <!-- Populated dynamically -->
+        </select>
+      </div>
+
+      <!-- Bot Start/Stop Safety Switch -->
+      <div class="bot-switch-container">
+        <span class="switch-label">BOT RUNNER</span>
+        <label class="switch">
+          <input type="checkbox" id="botStatusToggle">
+          <span class="slider round"></span>
+        </label>
+        <span class="pulse-indicator" id="statusPulse"></span>
+      </div>
+
+      <!-- ⚙ Control Panel Toggle Button -->
+      <button class="cp-open-btn" id="cpOpenBtn" onclick="openControlPanel()" title="Open Control Panel">
+        <i class="fa-solid fa-sliders"></i>
+        <span>Control Panel</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       MAIN DASHBOARD GRID
+       ============================================================ -->
+  <main class="dashboard-grid">
+
+    <!-- ── TOP METRICS ROW ─────────────────────────────────── -->
+    <section class="metrics-row full-width">
+      <div class="metric-card glass card-glow-green">
+        <div class="metric-header">
+          <span class="metric-title">TOTAL BALANCE</span>
+          <i class="fa-solid fa-money-bill-trend-up metric-icon"></i>
+        </div>
+        <div class="metric-val" id="metricTotalBalance">$1,000.00</div>
+        <div class="metric-desc">Total net asset value (USDT ref)</div>
+      </div>
+
+      <div class="metric-card glass card-glow-purple">
+        <div class="metric-header">
+          <span class="metric-title">SAFE BALANCE</span>
+          <i class="fa-solid fa-shield-halved metric-icon"></i>
+        </div>
+        <div class="metric-val" id="metricSafeBalance">$500.00</div>
+        <div class="metric-desc">Isolated risk-free reserve (untouched)</div>
+      </div>
+
+      <div class="metric-card glass card-glow-cyan">
+        <div class="metric-header">
+          <span class="metric-title">ALLOWED FOR TRADING</span>
+          <i class="fa-solid fa-chart-pie metric-icon"></i>
+        </div>
+        <div class="metric-val" id="metricAllocatedCapital">$500.00</div>
+        <div class="metric-desc">Max capital assigned to bot scanner</div>
+      </div>
+
+      <div class="metric-card glass">
+        <div class="metric-header">
+          <span class="metric-title">FREE TRADING CAPITAL</span>
+          <i class="fa-solid fa-wallet metric-icon"></i>
+        </div>
+        <div class="metric-val" id="metricFreeBalance">$500.00</div>
+        <div class="metric-desc">Remaining cash pool to open trades</div>
+      </div>
+
+      <div class="metric-card glass" id="realizedCard">
+        <div class="metric-header">
+          <span class="metric-title">REALIZED P&amp;L</span>
+          <i class="fa-solid fa-receipt metric-icon"></i>
+        </div>
+        <div class="metric-val" id="metricRealizedPnL">$0.00</div>
+        <div class="metric-desc" id="metricRealizedDesc">0 trades completed</div>
+      </div>
+
+      <div class="metric-card glass card-glow-amber" id="unrealizedCard">
+        <div class="metric-header">
+          <span class="metric-title">LIVE UNREALIZED P&amp;L</span>
+          <i class="fa-solid fa-wave-square metric-icon animate-pulse"></i>
+        </div>
+        <div class="metric-val" id="metricUnrealizedPnL">$0.00 (0.00%)</div>
+        <div class="metric-desc">Ticking sub-second from Live Feed</div>
+      </div>
+
+      <div class="metric-card glass">
+        <div class="metric-header">
+          <span class="metric-title">WIN RATE</span>
+          <i class="fa-solid fa-trophy metric-icon"></i>
+        </div>
+        <div class="metric-val" id="metricWinRate">0.0%</div>
+        <div class="metric-desc" id="metricWinRatio">0 W / 0 L</div>
+      </div>
+    </section>
+
+    <!-- ── LEFT COLUMN ─────────────────────────────────────── -->
+    <div class="col-left grid-column">
+
+      <!-- Exchange Monitor Card (Real accounts only; Paper shows simulated) -->
+      <div class="dashboard-card glass exchange-monitor-card" id="exchangeMonitorCard">
+        <div class="card-header-flex">
+          <h2 class="card-title"><i class="fa-solid fa-satellite-dish"></i> Exchange Monitor</h2>
+          <div class="em-refresh-area">
+            <span class="em-last-check" id="emLastCheck">Checking...</span>
+            <button class="btn btn-secondary btn-xs" onclick="checkExchangeStatusNow()" id="emRefreshBtn" title="Force re-check now">
+              <i class="fa-solid fa-rotate"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Status row: traffic light + text -->
+        <div class="em-status-row">
+          <div class="em-status-light" id="emStatusLight">
+            <span class="em-light-dot" id="emLightDot"></span>
+          </div>
+          <div class="em-status-details">
+            <div class="em-status-title" id="emStatusTitle">Connecting…</div>
+            <div class="em-status-sub" id="emStatusSub">Fetching status from exchange…</div>
+          </div>
+        </div>
+
+        <!-- Telemetry row: exchange name, latency, data stream -->
+        <div class="em-telemetry-row">
+          <div class="em-tele-item">
+            <div class="em-tele-label">Exchange</div>
+            <div class="em-tele-val" id="emExchangeName">—</div>
+          </div>
+          <div class="em-tele-item">
+            <div class="em-tele-label">Latency</div>
+            <div class="em-tele-val" id="emLatency">—</div>
+          </div>
+          <div class="em-tele-item">
+            <div class="em-tele-label">Data Stream</div>
+            <div class="em-tele-val" id="emStream">—</div>
+          </div>
+          <div class="em-tele-item">
+            <div class="em-tele-label">Account</div>
+            <div class="em-tele-val" id="emAccountName">—</div>
+          </div>
+        </div>
+
+        <!-- Error / detail message -->
+        <div class="em-detail-msg" id="emDetailMsg"></div>
+      </div>
+
+      <!-- Watchlists Manager Card -->
+      <div class="dashboard-card glass">
+        <div class="card-header-flex">
+          <h2 class="card-title"><i class="fa-solid fa-list-check"></i> Watchlists</h2>
+          <div class="watchlist-controls-inline">
+            <button class="btn btn-secondary btn-xs" onclick="handleCreateWatchlist()" title="Create New Watchlist">
+              <i class="fa-solid fa-folder-plus"></i>
+            </button>
+            <button class="btn btn-secondary btn-xs" onclick="handleRenameWatchlist()" title="Rename Current Watchlist">
+              <i class="fa-solid fa-pen-to-square"></i>
+            </button>
+            <button class="btn btn-danger-outline btn-xs" onclick="handleDeleteWatchlist()" title="Delete Current Watchlist">
+              <i class="fa-solid fa-folder-minus"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="watchlist-select-wrapper">
+          <select id="watchlistSelect" class="glass-select-field full-width">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+
+        <div class="add-token-container">
+          <div class="input-glow-wrapper">
+            <input type="text" id="addTokenInput" placeholder="Add Coin (e.g. BTCUSDT)..." autocomplete="off">
+            <button id="addTokenBtn"><i class="fa-solid fa-plus"></i> Add</button>
+          </div>
+          <div class="quick-tags">
+            <span class="quick-tag" onclick="quickAddToken('BTCUSDT')">BTC</span>
+            <span class="quick-tag" onclick="quickAddToken('ETHUSDT')">ETH</span>
+            <span class="quick-tag" onclick="quickAddToken('SOLUSDT')">SOL</span>
+            <span class="quick-tag" onclick="quickAddToken('AVAXUSDT')">AVAX</span>
+            <span class="quick-tag" onclick="quickAddToken('LINKUSDT')">LINK</span>
+          </div>
+        </div>
+
+        <div class="watchlist-tickers" id="watchlistList">
+          <div class="watchlist-empty">Watchlist empty. Add coins above!</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CENTER COLUMN ───────────────────────────────────── -->
+    <div class="col-center grid-column">
+
+      <!-- Open Positions -->
+      <div class="dashboard-card glass">
+        <div class="card-header-flex">
+          <h2 class="card-title"><i class="fa-solid fa-chart-line"></i> Open Positions</h2>
+          <button class="btn btn-danger-outline btn-xs" id="closeAllPositionsBtn">
+            <i class="fa-solid fa-fire"></i> Liquidate All
+          </button>
+        </div>
+        <div class="positions-container" id="positionsList">
+          <div class="positions-empty">
+            <i class="fa-solid fa-ban"></i>
+            <p>No active positions. The bot will scan on the 15-minute cycle.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Real-Time Terminal Logs -->
+      <div class="dashboard-card glass card-glow-cyan">
+        <h2 class="card-title"><i class="fa-solid fa-terminal"></i> System Activity Logs</h2>
+        <div class="terminal-logs-container" id="terminalLogs">
+          <div class="log-line text-muted">[00:00:00] System initialization initialized. Awaiting backend...</div>
+        </div>
+      </div>
+
+      <!-- Strategy Technical Scans -->
+      <div class="dashboard-card glass">
+        <h2 class="card-title"><i class="fa-solid fa-microchip"></i> Live Strategy Analyzers</h2>
+        <div class="strategy-scans-table-wrapper">
+          <table class="glass-table strategy-table">
+            <thead>
+              <tr>
+                <th>Coin</th>
+                <th>RSI &amp; BB Reversion</th>
+                <th>EMA &amp; MACD Cross</th>
+                <th>Stoch &amp; EMA Momentum</th>
+              </tr>
+            </thead>
+            <tbody id="strategyStatusBody">
+              <tr><td colspan="4" class="text-center text-muted">Awaiting connection...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ============================================================
+       BOTTOM SECTION: JOURNAL + NOTHING ELSE
+       (Account management moved to Control Panel)
+       ============================================================ -->
+  <section class="bottom-section-grid journal-only">
+    <div class="journal-card glass">
+      <h2 class="card-title"><i class="fa-solid fa-book-open-reader"></i> Trading Journal &amp; History</h2>
+      <div class="history-table-wrapper">
+        <table class="glass-table history-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Coin</th>
+              <th>Side</th>
+              <th>Strategy</th>
+              <th>Entry Price</th>
+              <th>Exit Price</th>
+              <th>Qty Size</th>
+              <th>PnL (%)</th>
+              <th>PnL ($)</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody">
+            <tr><td colspan="10" class="text-center text-muted">No trades recorded yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       PORTFOLIO HOLDINGS SECTION (Real accounts only)
+       Shows all Binance assets — manual sell with % selector
+       ============================================================ -->
+  <section class="bottom-section-grid journal-only" id="holdingsSection" style="display:none;">
+    <div class="journal-card glass">
+      <div class="card-header-flex">
+        <h2 class="card-title"><i class="fa-solid fa-coins"></i> Portfolio Holdings</h2>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="text-muted" style="font-size:0.78rem;" id="holdingsTotalLabel">Total: $0.00</span>
+          <button class="btn btn-secondary btn-xs" id="refreshHoldingsBtn" onclick="loadHoldings()">
+            <i class="fa-solid fa-rotate"></i> Refresh
+          </button>
+        </div>
+      </div>
+      <div class="history-table-wrapper">
+        <table class="glass-table history-table" id="holdingsTable">
+          <thead>
+            <tr>
+              <th>Asset</th>
+              <th>Free Qty</th>
+              <th>Locked Qty</th>
+              <th>Total Qty</th>
+              <th>Price (USDT)</th>
+              <th>USD Value</th>
+              <th>Sell Amount</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="holdingsTableBody">
+            <tr><td colspan="8" class="text-center text-muted">Loading holdings...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       MODALS
+       ============================================================ -->
+
+  <!-- Safety Stop Dialog -->
+  <div class="modal" id="stopWarningModal">
+    <div class="modal-content glass animate-scale">
+      <h3 class="modal-title text-danger"><i class="fa-solid fa-triangle-exclamation"></i> STOP TRADING RUNNER</h3>
+      <p class="modal-body-text">You are pausing the trading engine. How should existing open positions be handled?</p>
+      <div class="modal-buttons">
+        <button class="btn btn-danger" onclick="confirmBotStop('hard_stop')">
+          <i class="fa-solid fa-fire"></i> Liquidate All Open Trades
+        </button>
+        <button class="btn btn-warning" onclick="confirmBotStop('soft_stop')">
+          <i class="fa-solid fa-shield-halved"></i> Soft Stop (Keep Open, Stop New)
+        </button>
+        <button class="btn btn-secondary" onclick="closeModal('stopWarningModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account Switch Warning Dialog -->
+  <div class="modal" id="accountSwitchModal">
+    <div class="modal-content glass animate-scale">
+      <h3 class="modal-title text-warning"><i class="fa-solid fa-triangle-exclamation"></i> CONFIRM BOT RESTART</h3>
+      <p class="modal-body-text">
+        Switching accounts will <strong>RESTART</strong> the trading bot to load the new profile context, watchlist, and trade history. Current scans will pause briefly.
+      </p>
+      <div class="modal-buttons">
+        <button class="btn btn-warning" id="confirmAccountSwitchBtn">
+          <i class="fa-solid fa-arrows-rotate"></i> Confirm Switch &amp; Restart
+        </button>
+        <button class="btn btn-secondary" onclick="closeModal('accountSwitchModal')">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toastNotification" class="toast hidden">
+    <div class="toast-content">
+      <i id="toastIcon" class="fa-solid fa-circle-info"></i>
+      <span id="toastMsg">Trade Opened Successfully</span>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
