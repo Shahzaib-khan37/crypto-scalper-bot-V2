@@ -726,7 +726,7 @@ function renderTerminalLogs(logs) {
 
 function renderHistory(history) {
   if (history.length === 0) {
-    historyTableBody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">No trades recorded yet.</td></tr>';
+    historyTableBody.innerHTML = '<tr><td colspan="12" class="text-center text-muted">No trades recorded yet.</td></tr>';
     return;
   }
 
@@ -735,8 +735,9 @@ function renderHistory(history) {
   [...history].reverse().forEach(trade => {
     const tr = document.createElement('tr');
     
-    const sideClass = trade.action === 'BUY' ? 'text-success' : 'text-danger';
-    const isSell = trade.action === 'SELL';
+    // Fix: include TP_HIT (100% TP close) and PARTIAL_SELL (multi-target) in sell-side check
+    const isSell = trade.action === 'SELL' || trade.action === 'TP_HIT' || trade.action === 'PARTIAL_SELL';
+    const badgeClass = trade.action === 'BUY' ? 'buy' : 'sell';
     
     let pnlPctVal = 'N/A';
     let pnlUsdVal = 'N/A';
@@ -748,17 +749,27 @@ function renderHistory(history) {
       pnlUsdVal = `<span class="${pnlClass}">${pnlUsd >= 0 ? '+' : ''}$${pnlUsd.toFixed(2)}</span>`;
     }
 
+    // Dollar value columns:
+    //  Value In  = capital invested      (BUY → trade.total)
+    //  Value Out = gross sale proceeds   (SELL / PARTIAL_SELL → trade.total)
+    const valueIn  = !isSell && trade.total != null
+      ? `<span class="text-success">$${parseFloat(trade.total).toFixed(2)}</span>` : '<span class="text-muted">—</span>';
+    const valueOut =  isSell && trade.total != null
+      ? `<span class="text-danger">$${parseFloat(trade.total).toFixed(2)}</span>` : '<span class="text-muted">—</span>';
+
     tr.innerHTML = `
       <td class="text-muted">${trade.timestamp}</td>
       <td class="font-bold">${trade.coin}</td>
-      <td><span class="signal-badge ${trade.action === 'BUY' ? 'buy' : 'sell'}">${trade.action}</span></td>
+      <td><span class="signal-badge ${badgeClass}">${trade.action}</span></td>
       <td class="text-muted">${trade.strategy || 'MANUAL'}</td>
       <td>$${trade.price.toFixed(4)}</td>
-      <td>${isSell ? '$' + trade.price.toFixed(4) : '-'}</td>
+      <td>${isSell ? '$' + trade.price.toFixed(4) : '—'}</td>
       <td>${trade.size.toFixed(5)}</td>
+      <td>${valueIn}</td>
+      <td>${valueOut}</td>
       <td>${pnlPctVal}</td>
       <td>${pnlUsdVal}</td>
-      <td class="text-muted font-sm">${trade.reason || '-'}</td>
+      <td class="text-muted font-sm">${trade.reason || '—'}</td>
     `;
     historyTableBody.appendChild(tr);
   });

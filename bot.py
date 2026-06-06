@@ -35,7 +35,7 @@ bot_thread = None
 risk_thread = None
 stop_event = threading.Event()
 last_tick_time = 0
-TICK_INTERVAL = 900  # 15 minutes in seconds (matches 15m candlestick timeframe)
+TICK_INTERVAL = 180  # 15 minutes in seconds (matches 15m candlestick timeframe)
 
 # --- EXCHANGE STATUS CACHE ---
 _exchange_status_lock = threading.Lock()
@@ -456,15 +456,21 @@ def run_risk_monitor(check_manual_sells=False):
                             journal["totalPnL"] = round(journal["totalPnL"] + pnl_usd, 4)
                             if pnl_usd > 0:
                                 journal["winningTrades"] += 1
-                                
+                            
+                            # TP_HIT = full position closed at single TP (100% sell)
+                            # PARTIAL_SELL = only a portion sold (multi-target strategies)
+                            is_full_close = (sell_pct >= 100) or (pos.get("remainingSize", 0) <= 0.00001)
+                            action_label = "TP_HIT" if is_full_close else "PARTIAL_SELL"
+                            
                             partial_log = {
                                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                                 "accountName": acc["name"],
                                 "mode": acc.get("mode", "paper"),
                                 "coin": symbol,
-                                "action": "PARTIAL_SELL",
+                                "action": action_label,
                                 "strategy": pos["strategy"],
                                 "price": curr_price,
+                                "entryPrice": entry_price,
                                 "size": actual_sell_qty,
                                 "total": round(gross_proceeds, 2),
                                 "fees": fees_paid,
