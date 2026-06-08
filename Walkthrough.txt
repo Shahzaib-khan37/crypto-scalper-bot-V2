@@ -1,0 +1,29 @@
+📋 Is Bot Mein Jo Kuch Kaam Kar Raha Hai (Complete List):
+Feature	Status
+EMA_MACD_Crossover strategy (15m candlesticks)	✅
+Option 1 Risk: Fixed 1% SL / 2% TP (1:2 RR)	✅
+Real-time Risk Monitor (SL/TP check har 2 second)	✅
+Dynamic Capital Division (free_capital / slots_left)	✅
+Binance Live Balance Sync (Total NAV + Free USDT)	✅
+External Sell Detection (manual sells auto-close)	✅
+Portfolio Holdings + Manual Sell (% or $)	✅
+Time Stop (12 hours max per trade)	✅
+Notional Dust Protection ($5 minimum, Binance rule)	✅
+Exchange Status Monitor (30-sec background ping)	✅
+watchlist NameError bug	✅ Fixed
+
+Watch lists Update
+watch lists section upgraded, available globally har account , save,rename and more
+
+
+
+
+
+
+
+Status
+Now Running Live Trading Test with Real Binance Sub Account   4/6/26
+Starting Balance: 131.71 Dollars
+Server Oracle
+Port 5000
+GitHub Branch Main
